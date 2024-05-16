@@ -1,0 +1,50 @@
+---
+name: Pull Request Pipeline
+
+env:
+  SERVICE_NAME: ${{ github.repository }}
+  TF_IN_AUTOMATION: "True"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
+  packages: write
+
+on:
+  pull_request:
+    branches: [ $default-branch ]
+    # If you don't want to trigger this workflow on some changes - you can use section below
+    #paths-ignore:
+    #  - '**.md'
+  workflow_dispatch:
+
+jobs:
+  ### You can add here any tests that you would like to do, like integration tests or linters
+  tf-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - { name: "inte", long_name: "integration", tf_directory: "infra/inte" }
+          - { name: "prep", long_name: "preproduction", tf_directory: "infra/prep" }
+          - { name: "prod", long_name: "production", tf_directory: "infra/prod" }
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+      - name: Set short SHA
+        run: echo "SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+        shell: bash
+      - name: Terraform Plan
+        uses: optimizely/terraform-plan-github-action@main
+        id: tfplan
+        with:
+          terraform_directory: ${{ matrix.environment.tf_directory }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          docker_image_tag: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}-${{ env.SHA_SHORT }}
+          ssh_private_key: ${{ secrets.OPTI_EXP_MINION_TERRAFORM_PLAN_SSH_KEY }}
+          terraform_plan_artifact_name: terraform-plan-${{ matrix.environment.name }}
+          lock_state_file: "false"
