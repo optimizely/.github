@@ -1,0 +1,8 @@
+{
+  "name": "test - Optimizely PR Pipeline",
+  "description": "This is a test workflow. Do not use",
+  "iconName": "example-icon",
+  "categories": [
+      "Terraform"
+  ]
+}
